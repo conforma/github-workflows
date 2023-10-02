@@ -1,0 +1,26 @@
+name: 'Set auto merge'
+'on':
+  workflow_call:
+
+jobs:
+  set-auto-merge:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.review.state == 'APPROVED' && github.event.pull_request.user.login == 'dependabot[bot]' }}
+    steps:
+      - run: |
+          echo 'Setting auto merge for approved pull requests created by Dependabot and approved by a collaborator'
+          set -o errexit
+          set -o nounset
+          set -o pipefail
+
+          FULL_NAME='${{ github.event.repository.full_name }}'
+          ORG="${FULL_NAME%/*}"
+          REPO="${FULL_NAME#*/}"
+          if [ "$(gh api graphql -f query="{repository(owner: \"${ORG}\", name: \"${REPO}\") { collaborators { nodes { login } } } }" --jq '.data.repository.collaborators.nodes.[].login | select (. == "${{ github.event.sender.login }}")')" == "${{ github.event.sender.login }}" ]; then
+            gh pr merge ${{ github.event.pull_request.number }} --merge --auto --delete-branch
+          else
+            echo "::notice::Pull request not approved by a collaborator"
+          fi
+        env:
+          GH_REPO: ${{ github.event.repository.full_name }}
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
