@@ -22,7 +22,7 @@ name: 'Set auto merge'
 jobs:
   set-auto-merge:
     runs-on: ubuntu-latest
-    if: ${{ github.event.review.state == 'APPROVED' && (github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'renovate[bot]') }}
+    if: ${{ github.event.review.state == 'APPROVED' && (github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'renovate[bot]' || github.event.pull_request.user.login == 'red-hat-konflux[bot') }}
     steps:
       - run: |
           echo 'Setting auto merge for approved pull requests created by Dependabot and approved by a collaborator'
