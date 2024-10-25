@@ -29,7 +29,10 @@ exec 3>&1
 running_version="$(go env GOVERSION)"
 running_version=${running_version#go}
 
+status=0
+
 error() {
+    status=1
     file="$1"
     line="$2"
     message="$3"
@@ -98,3 +101,5 @@ for d in **/{Dockerfile*,Containerfile*}; do
         error "${d}" "${line}" "Containerfile version incompatible, saw ${version}, running with version: ${running_version}"
     fi
 done
+
+exit ${status}
