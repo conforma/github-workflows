@@ -36,6 +36,7 @@ error() {
     file="$1"
     line="$2"
     message="$3"
+    message="${message//$'\n'/'%0A'}"
     printf "::error file=%s,line=${line},col=0::%s\n" "${file}" "${message}" >&3
 }
 
