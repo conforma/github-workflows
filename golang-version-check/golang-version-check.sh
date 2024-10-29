@@ -37,7 +37,7 @@ error() {
     message="$3"
     message="${message//$'\n'/'%0A'}"
     printf "::error file=%s,line=${line},col=0::%s\n" "${file}" "${message}" >&3
-    return 1
+    status=1
 }
 
 version_from() {
@@ -47,7 +47,6 @@ version_from() {
         stderr=$("$@" 2>&1 1>&3-)
     } 3>&1 || {
         error "${file}" 0 "Failed to extract golang version from ${file}: ${stderr}"
-        status=1
         return 1
     }
 }
@@ -82,7 +81,7 @@ compatible() {
 }
 
 for mod in **/go.mod; do
-    line_version=$(go_mod_version "${mod}") || continue
+    line_version=$(go_mod_version "${mod}") || { status=1 && continue; }
     line=${line_version%:*}
     version=${line_version#*:}
     [[ "${version}" == *allow* ]] && continue
@@ -92,7 +91,7 @@ for mod in **/go.mod; do
 done
 
 for tv in **/.tool-versions; do
-    line_version=$(tool_version "${tv}") || continue
+    line_version=$(tool_version "${tv}") || { status=1 && continue; }
     line=${line_version%:*}
     version=${line_version#*:}
     if ! compatible "${version}" "${running_version}"; then
@@ -101,7 +100,7 @@ for tv in **/.tool-versions; do
 done
 
 for d in **/{Dockerfile*,Containerfile*}; do
-    line_version=$(builder_version "${d}") || continue
+    line_version=$(builder_version "${d}") || { status=1 && continue; }
     line=${line_version%:*}
     version=${line_version#*:}
     if ! compatible "${version}" "${running_version}"; then
