@@ -55,7 +55,7 @@ version_from() {
 # assumes that the go version is on the third line always
 go_mod_version() {
     file="$1"
-    version_from "${file}" go list -modfile "${file}" -f '3:{{.Module.GoVersion}}'
+    version_from "${file}" grep -n -P -o '(?<=^go )(\d+(\.\d+)*.*$)' "${file}"
 }
 
 tool_version() {
@@ -81,6 +81,7 @@ for mod in **/go.mod; do
     line_version=$(go_mod_version "${mod}") || continue
     line=${line_version%:*}
     version=${line_version#*:}
+    [[ "${version}" == *allow* ]] && continue
     if ! compatible "${version}" "${running_version}"; then
         error "${mod}" "${line}" "Golang version incompatible, saw ${version}, running with version: ${running_version}"
     fi
