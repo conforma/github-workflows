@@ -68,7 +68,7 @@ tool_version() {
 # specified as x.y.z
 builder_version() {
     file="$1"
-    version_from "${file}" grep -i -n -P -o '^FROM .*(?:\K(\d+\.\d+\.\d*))(?=.* AS build.*$)' "${file}"
+    version_from "${file}" grep -i -n -P -o '(?<=^FROM .{1,248}:v?)(\d+(?:\.\d+)+)(?=.* AS build.*$)' "${file}"
 }
 
 compatible() {
