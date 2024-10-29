@@ -68,7 +68,11 @@ tool_version() {
 # specified as x.y.z
 builder_version() {
     file="$1"
-    version_from "${file}" grep -i -n -P -o '(?<=^FROM .{1,248}:v?)(\d+(?:\.\d+)+)(?=.* AS build.*$)' "${file}"
+    # '(?<=^FROM .{1,248}:v?)(\d+(?:\.\d+)+)(?=.* AS build.*$)' works fine here
+    # on Fedora with grep 3.11 + pcre, it gives "lookbehind assertion is not
+    # fixed length" on Ubuntu with grep 3.7, so for compatibility let's use the
+    # least specific version here
+    version_from "${file}" grep -i -n -P -o '\K(\d+(?:\.\d+)+)(?=.* AS build.*$)' "${file}"
 }
 
 compatible() {
