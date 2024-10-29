@@ -32,12 +32,12 @@ running_version=${running_version#go}
 status=0
 
 error() {
-    status=1
     file="$1"
     line="$2"
     message="$3"
     message="${message//$'\n'/'%0A'}"
     printf "::error file=%s,line=${line},col=0::%s\n" "${file}" "${message}" >&3
+    return 1
 }
 
 version_from() {
@@ -47,6 +47,7 @@ version_from() {
         stderr=$("$@" 2>&1 1>&3-)
     } 3>&1 || {
         error "${file}" 0 "Failed to extract golang version from ${file}: ${stderr}"
+        status=1
         return 1
     }
 }
