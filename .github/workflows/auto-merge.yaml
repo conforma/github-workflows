@@ -30,14 +30,49 @@ jobs:
           set -o nounset
           set -o pipefail
 
-          FULL_NAME='${{ github.event.repository.full_name }}'
-          ORG="${FULL_NAME%/*}"
-          REPO="${FULL_NAME#*/}"
-          if [ "$(gh api graphql -f query="{repository(owner: \"${ORG}\", name: \"${REPO}\") { collaborators { nodes { login } } } }" --jq '.data.repository.collaborators.nodes.[].login | select (. == "${{ github.event.sender.login }}")')" == "${{ github.event.sender.login }}" ]; then
-            gh pr merge ${{ github.event.pull_request.number }} --merge --auto --delete-branch
+          ORG="${GH_REPO%/*}"
+          REPO="${GH_REPO#*/}"
+
+          # Pass GitHub context through env: (below) and GraphQL variables
+          # rather than expanding it directly into this run block, and match the
+          # approver in the shell rather than inside the jq program. This keeps
+          # untrusted input out of the interpreted script — this workflow runs
+          # with contents: write and is reused across many repositories.
+          #
+          # Paginate the collaborators connection so approvers past the first
+          # page are still recognized, and fail closed (exit non-zero) on an API
+          # error instead of mistaking it for "not a collaborator".
+          # shellcheck disable=SC2016  # $owner/$name/$endCursor are GraphQL variables bound by gh, not shell vars
+          if ! collaborators="$(gh api graphql --paginate \
+            -f owner="$ORG" -f name="$REPO" \
+            -f query='query($owner: String!, $name: String!, $endCursor: String) {
+              repository(owner: $owner, name: $name) {
+                collaborators(first: 100, after: $endCursor) {
+                  nodes { login }
+                  pageInfo { hasNextPage endCursor }
+                }
+              }
+            }' \
+            --jq '.data.repository.collaborators.nodes[].login')"; then
+            echo "::error::Failed to query repository collaborators"
+            exit 1
+          fi
+
+          approved_by_collaborator=false
+          while IFS= read -r login; do
+            if [ "$login" = "$SENDER_LOGIN" ]; then
+              approved_by_collaborator=true
+              break
+            fi
+          done <<< "$collaborators"
+
+          if [ "$approved_by_collaborator" = true ]; then
+            gh pr merge "$PR_NUMBER" --merge --auto --delete-branch
           else
             echo "::notice::Pull request not approved by a collaborator"
           fi
         env:
           GH_REPO: ${{ github.event.repository.full_name }}
-          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+          SENDER_LOGIN: ${{ github.event.sender.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
